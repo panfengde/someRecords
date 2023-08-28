@@ -7,7 +7,8 @@
 现在假如有一个app应用canrunfile.app，他引用了一个/usr/lib下的系统库/usr/lib/libs.1.dylib，还引用了一个第三方库"libA.1.dylib".再假如这个libA.1.dylib动态库又引用了另一个第三方的动态库libB.2.dylib.
 
 首先canrunfile.app在Mac系统下其实是一个目录，内部目录结构是:
-```
+
+```shell
 canrunfile.app
     /Contents
          /Frameworks
@@ -19,7 +20,8 @@ canrunfile.app
         /Info.plist                       //plist应用程序的说明文件
 ```
 现在假如应用和三个动态库文件的路径在系统中安装的位置分别为:
-```
+
+```shell
 ~/Documents/canrunfile.app
 /usr/lib/libS.1.dylib
 /usr/local/lib/A/libA.1.dylib
@@ -37,14 +39,16 @@ Mac系统下的app和dylib动太库引用的第三方动态库需要手动设置
 查看一个可执行文件或者动态库引用的第三方库路径则使用的工具是otool
 
 对于上边的例子，我们查看canrunfile二进制文件引用的库路径
-```
+
+```shell
 cd ~/Documents/canrunfile.app/MacOS
 otool -L canrunfile
 ```
 
 运行上边命令后可以看到:
 
-```
+
+```shell
 canrunfile:
   /usr/lib/libS.1.dylib  (compatibility version , current version)
   /usr/local/lib/libA.1.dylib (compatibility version , current version)
@@ -52,32 +56,38 @@ canrunfile:
 
 这说明canrunfile可执行程序引用了上边的两个库
 这时候我们把第三方库和第三方库引用的库都复制出来放到Frameworks目录下，然使用install_name_tool修改canrunfile中的动态库引用路径
-```
+
+```shell
 install_name_tool -change /usr/local/lib/libA.1.dylib @executable_path/../Frameworks/libA.1.dylib canrunfile
 ```
 再运行
-```
+
+```shell
 otool -L canrunfile
 ```
 会看到
-```
+
+```shell
 canrunfile:
   /usr/lib/libS.1.dylib  (compatibility version , current version)
   @executable_path/../Frameworks/libA.1.dylib (compatibility version , current version)
 ```
 这时canrunfile的动态库引用就改好了，如果不修改
-```
+
+```shell
 Frameworks/LibA.1.dylib
 ```
 的引用路径就会报加载/usr/local/lib/libB.1.dylib错误
 查看动态库引用的第三方动态库的方法也是
 
-```
+
+```shell
 otool -L LibA.1.dylib
 ```
 可以看到
 
-```
+
+```shell
 LibA.1.dylib:
     /usr/local/lib/libA.1.dylib
     /usr/local/lib/libB.1.dylib
@@ -85,22 +95,28 @@ LibA.1.dylib:
 注意，这里为什么会有两个呢，其实这里的第一个是这个动态库的安装名称，也叫INSTALL Name，这个安装名称都是使用动态库路径表示的.后边的才是这个动态库引用到的第三方库。
 所以，修改第三方库引用路径的时候，还要修改这个install name.
 使用install_name_tool 的id参数来修改这个install name：
-```
+
+```shell
 cd ~/Documents/canrunfile.app/Frameworks
 sudo install_name_tool -id @executable_path/../Frameworks/libA.1.dylib libA.1.dylib
 ```
 注意，这里要加上sudo，要不然会出现权限错误问题，同时修改第三方库加载路径：
 
-```
+
+```shell
 sudo install_name_tool -change  /usr/local/lib/libB.1.dylib @executable_path/../Frameworks/libB.1.dylib libA.1.dylib
-```
+
+```shell
 到这里第二个动态库就修改完成了，接下来还要修改第三个库的install name（这里不修改install name不能不程序能不能运行，我没有试过，大家可以试一下）。
-```
+
+```shell
 sudo install_name_tool -id @executable_path/../Frameworks/libB.1.dylib libB.1.dylib
 ```
 到些动态库修改完成
+
 ## 最后的目录结构
-```
+
+```shell
 canrunfile.app
     /Contents
          /Frameworks
